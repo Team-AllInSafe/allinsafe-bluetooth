@@ -16,7 +16,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresPermission
 
 /**
  * 블루투스 관리 기능
