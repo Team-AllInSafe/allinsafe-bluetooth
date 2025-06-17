@@ -1,4 +1,4 @@
-package com.example.bluetoothtest
+package com.example.allinsafe_bluetooth
 
 import org.junit.Test
 

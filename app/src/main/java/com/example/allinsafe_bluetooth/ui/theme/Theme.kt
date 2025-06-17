@@ -1,6 +1,5 @@
-package com.example.bluetoothtest.ui.theme
+package com.example.allinsafe_bluetooth.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

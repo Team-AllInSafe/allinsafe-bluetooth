@@ -1,4 +1,4 @@
-package com.example.bluetoothtest.ui.theme
+package com.example.allinsafe_bluetooth.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
