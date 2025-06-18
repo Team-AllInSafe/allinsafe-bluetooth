@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--메니페스트 선언 -->
-
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-sdk
+        android:minSdkVersion="31"
+        android:targetSdkVersion="34" />
+
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="neverForLocation" />
-
-    <uses-sdk android:minSdkVersion="31"
-        android:targetSdkVersion="34" />
 
     <application
         android:allowBackup="true"
@@ -24,13 +24,21 @@
         android:supportsRtl="true"
         tools:targetApi="34">
         <activity
+            android:name="com.example.allinsafe_bluetooth.Ac2_02_bluetooth_trust_device"
+            android:exported="false" />
+        <activity
             android:name="com.example.allinsafe_bluetooth.BluetoothMainActivity"
+            android:exported="false"/>
+        <activity
+            android:name="com.example.allinsafe_bluetooth.Ac2_01_bluetooth_main"
             android:exported="true"
             android:theme="@style/Theme.BluetoothTest.">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
+
 </manifest>

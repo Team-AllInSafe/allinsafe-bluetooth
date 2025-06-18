@@ -2,4 +2,95 @@
 <resources>
 
     <style name="Theme.BluetoothTest." parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="btn_main">
+        <item name="android:layout_margin">5dp</item>
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_rowWeight">1</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:background">@drawable/btn_round_blue</item>
+    </style>
+
+    <style name="btn_main_yellow">
+        <item name="android:layout_margin">5dp</item>
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_rowWeight">1</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:textColor">@color/background</item>
+        <item name="android:background">@drawable/btn_round_yellow</item>
+    </style>
+
+    <style name="text_beige_bold">
+        <item name="android:textColor">@color/ui_beige</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="text_blue_bold">
+        <item name="android:textColor">@color/ui_blue</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="btn_topleft_back">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:src">@drawable/ui_back</item>
+        <item name="android:layout_margin">20dp</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:background">@drawable/btn_back</item>
+    </style>
+
+    <style name="top_textview" parent="text_beige_bold">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">25sp</item>
+        <item name="android:layout_marginTop">20dp</item>
+    </style>
+
+    <style name="btn_bottom_back">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">45dp</item>
+        <item name="android:layout_marginLeft">10dp</item>
+        <item name="android:layout_marginRight">10dp</item>
+        <item name="android:background">@drawable/btn_round_beige</item>
+        <item name="android:text">이전 단계로 돌아가기</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ui_blue</item>
+        <item name="android:gravity">center</item>
+        <item name="android:layout_marginBottom">5dp</item>
+    </style>
+
+    <style name="btn_bottom_finish">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">60dp</item>
+        <item name="android:layout_marginLeft">10dp</item>
+        <item name="android:layout_marginRight">10dp</item>
+        <item name="android:background">@drawable/btn_round_green</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/ui_beige</item>
+        <item name="android:gravity">center</item>
+        <item name="android:layout_marginBottom">10dp</item>
+    </style>
+
+    <style name="btn_bottom_main">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">85dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">25sp</item>
+        <item name="android:textColor">@color/ui_blue</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_margin">15dp</item>
+        <item name="android:background">@drawable/btn_round_beige</item>
+    </style>
+
+    <style name="text_background">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:textColor">@color/ui_beige</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:layout_marginLeft">60dp</item>
+        <item name="android:layout_marginRight">60dp</item>
+
+    </style>
 </resources>

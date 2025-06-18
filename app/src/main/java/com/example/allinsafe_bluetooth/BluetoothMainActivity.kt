@@ -91,6 +91,7 @@ class BluetoothMainActivity : ComponentActivity() {
                         }
 
                         addr in trustedDevices -> {
+                            // TODO: 여기에 trust화면 추가? 
                             Log.i("BluetoothSecurity", "신뢰 기기: $name ($addr) - 허용")
                         }
 
