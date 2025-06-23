@@ -44,7 +44,6 @@ class BluetoothMainActivity : ComponentActivity() {
         permissionLauncher.launch(bluetoothPermissions)
     }
 
-
     // SharedPreferences 키
     private val PREFS = "bluetooth_security_prefs"
     private val TRUSTED_KEY = "trusted"
