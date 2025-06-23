@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -97,15 +96,10 @@ class BluetoothMainActivity : ComponentActivity() {
     private fun initializeBluetoothFeature() {
         // 1) 기존 bondedDevices → 신뢰 목록으로
         if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT
+                this, Manifest.permission.BLUETOOTH_CONNECT
             ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-        bluetoothAdapter?.bondedDevices
-            ?.filter{it.address !in blockedDevices }
-            ?.forEach{addTrustedDevice(it.address)}
+        ) return
+        loadDeviceLists()
 
         // 2) Receiver 등록 (applicationContext 에 등록해서 액티비티 finish 후에도 동작)
         val filter = IntentFilter().apply {
@@ -116,7 +110,6 @@ class BluetoothMainActivity : ComponentActivity() {
         }
         applicationContext.registerReceiver(pairingReceiver, filter)
         showToast("블루투스 보호 모드 활성화")
-
     }
     /** Activity 종료 시 리시버 해제 */
     override fun onDestroy() {
@@ -126,7 +119,6 @@ class BluetoothMainActivity : ComponentActivity() {
 
 
     private fun addTrustedDevice(address: String) {
-        loadDeviceLists()
         if (trustedDevices.add(address)) {
             saveDeviceLists()
             Log.i("BluetoothSecurity", "신뢰 기기 등록: $address")
@@ -134,21 +126,32 @@ class BluetoothMainActivity : ComponentActivity() {
     }
 
     private fun addBlockedDevice(address: String) {
-        loadDeviceLists()
         if (blockedDevices.add(address)) {
             saveDeviceLists()
             Log.i("BluetoothSecurity", "차단 기기 등록: $address")
         }
     }
-
     private fun loadDeviceLists() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         trustedDevices.clear()
         blockedDevices.clear()
-        prefs.getStringSet(TRUSTED_KEY, emptySet())?.let { trustedDevices.addAll(it) }
-        prefs.getStringSet(BLOCKED_KEY, emptySet())?.let { blockedDevices.addAll(it) }
-    }
 
+        val stored = prefs.getStringSet(TRUSTED_KEY, emptySet()) ?: emptySet()
+        val blockedStored = prefs.getStringSet(BLOCKED_KEY, emptySet()) ?: emptySet()
+
+        val bonded = if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            bluetoothAdapter?.bondedDevices?.map { it.address }?.toSet() ?: emptySet()
+        } else {
+            emptySet()
+        }
+
+        stored.intersect(bonded).forEach { trustedDevices.add(it) }
+
+        blockedDevices.addAll(blockedStored)
+    }
     private fun saveDeviceLists() {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit {
             putStringSet(TRUSTED_KEY, trustedDevices)
