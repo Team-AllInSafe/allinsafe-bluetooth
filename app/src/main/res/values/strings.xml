@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BluetoothTest</string>
+    <string name="bt_manage_init_background">블루투스 관리 기능을 활성화 하여 기기를 보호하세요</string>
 </resources>

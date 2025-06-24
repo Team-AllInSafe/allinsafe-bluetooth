@@ -1,158 +1,157 @@
 package com.example.allinsafe_bluetooth
+
 import android.Manifest
-import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
-import androidx.activity.compose.setContent
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.activity.result.contract.ActivityResultContracts
 
-/**
- * 블루투스 관리 기능
- * - 관리: 신뢰/차단 목록 (SharedPreferences)
- * - 감지: 미등록·차단 기기 페어링 시도
- * - 처리: 신뢰/차단/무시 알림, 자동 차단, 페어링 거부
- */
+@Suppress("DEPRECATION")
 class BluetoothMainActivity : ComponentActivity() {
-
-    // 블루투스 권한 목록
+    // 요청 권한 목록
     private val bluetoothPermissions = arrayOf(
         Manifest.permission.BLUETOOTH_CONNECT,
         Manifest.permission.BLUETOOTH_SCAN,
         Manifest.permission.ACCESS_FINE_LOCATION
     )
-
-    // 2. 권한 요청 결과 처리
+    // Activity Result API 로 권한 요청
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = bluetoothPermissions.all { permissions[it] == true }
-        if (allGranted) {
+    ) { results ->
+        if (bluetoothPermissions.all { results[it] == true }) {
             initializeBluetoothFeature()
         } else {
-            Toast.makeText(this, "블루투스 권한이 필요합니다.", Toast.LENGTH_LONG).show()
-            finish()
+            showToast("블루투스 권한이 필요합니다.")
         }
+        finish()
     }
 
-    // 3. 블루투스 기능 변수/리스트
-    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private val trustedDevices = mutableSetOf<String>() // 신뢰 기기 주소
-    private val blockedDevices = mutableSetOf<String>() // 차단 기기 주소
-    private var isReceiverRegistered = false
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 권한 요청 시작
+        permissionLauncher.launch(bluetoothPermissions)
+    }
 
+    // SharedPreferences 키
     private val PREFS = "bluetooth_security_prefs"
     private val TRUSTED_KEY = "trusted"
     private val BLOCKED_KEY = "blocked"
 
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val trustedDevices = mutableSetOf<String>()
+    private val blockedDevices = mutableSetOf<String>()
 
-    /** 페어링 시도 감지/자동 차단/선택 알림 브로드캐스트 리시버 */
+    // 페어링·ACL 이벤트 리시버
     private val pairingReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (BluetoothDevice.ACTION_PAIRING_REQUEST == intent.action) {
-                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(
-                        BluetoothDevice.EXTRA_DEVICE,
-                        BluetoothDevice::class.java
-                    )
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onReceive(ctx: Context, intent: Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_PAIRING_REQUEST -> {
+                    // system pairing dialog 사용
                 }
-                device?.let {
-                    if (ActivityCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        )
-                        != PackageManager.PERMISSION_GRANTED
-                    ) return
-
-                    val addr = it.address
-                    val name = it.name ?: "알 수 없음"
-                    when {
-                        addr in blockedDevices -> {
-                            rejectPairing(it)
-                            Toast.makeText(
-                                context,
-                                "차단된 기기: $name ($addr)\n자동 차단됨",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            Log.i("BluetoothSecurity", "자동 차단: $name ($addr)")
-                        }
-
-                        addr in trustedDevices -> {
-                            Log.i("BluetoothSecurity", "신뢰 기기: $name ($addr) - 허용")
-                        }
-
-                        else -> {
-                            showPairingAlert(context, it)
-                        }
-                    }
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    val dev =
+                        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                            ?: return
+                    addTrustedDevice(dev.address)
+                    showToast("연결 감지 → 신뢰 추가: ${dev.address}")
                 }
+
+                BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                    val dev =
+                        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                            ?: return
+                    showToast("기기 연결 해제: ${dev.address}")
+                }
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED->handleBondStateChanged(intent)
             }
         }
     }
 
+       /** 시스템 페어링 결과(BOND_STATE_CHANGED) 처리 */
+       private fun handleBondStateChanged(intent: Intent) {
+           val dev = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
+           val prev = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1)
+           val curr = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
 
-    /** 미등록 기기 페어링 시도시 AlertDialog(신뢰 추가/차단/무시) 표시 */
-    private fun showPairingAlert(context: Context, device: BluetoothDevice) {
+           if (prev == BluetoothDevice.BOND_BONDING && curr == BluetoothDevice.BOND_NONE) {
+               addBlockedDevice(dev.address)
+               showToast("차단된 기기: ${dev.address}")
+           } else if (curr == BluetoothDevice.BOND_BONDED) {
+               addTrustedDevice(dev.address)
+               showToast("신뢰 기기 등록: ${dev.address}")
+           }
+       }
+    private fun initializeBluetoothFeature() {
+        // 1) 기존 bondedDevices → 신뢰 목록으로
         if (ActivityCompat.checkSelfPermission(
-                context, Manifest.permission.BLUETOOTH_CONNECT
+                this, Manifest.permission.BLUETOOTH_CONNECT
             ) != PackageManager.PERMISSION_GRANTED
         ) return
-        AlertDialog.Builder(context)
-            .setTitle("미등록 기기 페어링 시도 감지")
-            .setMessage("기기명: ${device.name ?: "알 수 없음"}\n주소: ${device.address}")
-            .setPositiveButton("신뢰 기기 추가") { _, _ ->
-                addTrustedDevice(device.address)
-                Toast.makeText(context, "신뢰 기기 추가", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("차단") { _, _ ->
-                addBlockedDevice(device.address)
-                rejectPairing(device)
-                Toast.makeText(context, "차단 및 연결 거부", Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("무시") { _, _ ->
-                Log.i("BluetoothSecurity", "무시(임시 허용): ${device.address}")
-            }
-            .setCancelable(false)
-            .show()
+        loadDeviceLists()
+
+        // 2) Receiver 등록 (applicationContext 에 등록해서 액티비티 finish 후에도 동작)
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        }
+        applicationContext.registerReceiver(pairingReceiver, filter)
+        showToast("블루투스 보호 모드 활성화")
+    }
+    /** Activity 종료 시 리시버 해제 */
+    override fun onDestroy() {
+        super.onDestroy()
+        applicationContext.unregisterReceiver(pairingReceiver)
     }
 
-    /** 페어링 취소(거부) 반영 */
-    private fun rejectPairing(device: BluetoothDevice) {
-        try {
-            device.javaClass.getMethod("cancelBondProcess").invoke(device)
-        } catch (e: Exception) {
-            Log.e("BluetoothSecurity", "페어링 취소 실패", e)
+
+    private fun addTrustedDevice(address: String) {
+        if (trustedDevices.add(address)) {
+            saveDeviceLists()
+            Log.i("BluetoothSecurity", "신뢰 기기 등록: $address")
         }
     }
 
-    /** 신뢰 기기 목록에 추가하고 저장 */
-    private fun addTrustedDevice(address: String) {
-        trustedDevices.add(address)
-        saveDeviceLists()
-        Log.i("BluetoothSecurity", "신뢰 기기 등록: $address")
-    }
-
-    /** 차단 기기 목록에 추가하고 저장 */
     private fun addBlockedDevice(address: String) {
-        blockedDevices.add(address)
-        saveDeviceLists()
-        Log.i("BluetoothSecurity", "차단 기기 등록: $address")
+        if (blockedDevices.add(address)) {
+            saveDeviceLists()
+            Log.i("BluetoothSecurity", "차단 기기 등록: $address")
+        }
     }
+    private fun loadDeviceLists() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        trustedDevices.clear()
+        blockedDevices.clear()
 
-    /** 목록 저장 */
+        val stored = prefs.getStringSet(TRUSTED_KEY, emptySet()) ?: emptySet()
+        val blockedStored = prefs.getStringSet(BLOCKED_KEY, emptySet()) ?: emptySet()
+
+        val bonded = if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            bluetoothAdapter?.bondedDevices?.map { it.address }?.toSet() ?: emptySet()
+        } else {
+            emptySet()
+        }
+
+        stored.intersect(bonded).forEach { trustedDevices.add(it) }
+
+        blockedDevices.addAll(blockedStored)
+    }
     private fun saveDeviceLists() {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit {
             putStringSet(TRUSTED_KEY, trustedDevices)
@@ -160,72 +159,7 @@ class BluetoothMainActivity : ComponentActivity() {
         }
     }
 
-    /** 목록 불러오기 */
-    private fun loadDeviceLists() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        trustedDevices.clear()
-        blockedDevices.clear()
-        prefs.getStringSet(TRUSTED_KEY, emptySet())?.let { trustedDevices.addAll(it) }
-        prefs.getStringSet(BLOCKED_KEY, emptySet())?.let { blockedDevices.addAll(it) }
-    }
-
-    private fun hasAllPermissions(): Boolean {
-        return bluetoothPermissions.all {
-            ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        // 런타임 권한 요청
-        if (!hasAllPermissions()) {
-            permissionLauncher.launch(bluetoothPermissions)
-            setContent { Surface { Text("블루투스 권한 요청 중...") } }
-            return
-        }
-
-        // 권한 허용된 경우만 실행
-        initializeBluetoothFeature()
-    }
-
-    private fun initializeBluetoothFeature() {
-        // 앱 권한 체크
-        if (!hasAllPermissions()) {
-            Toast.makeText(this, "블루투스 권한이 필요합니다.", Toast.LENGTH_LONG).show()
-            return
-        }
-        loadDeviceLists()
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            bluetoothAdapter?.bondedDevices?.forEach { addTrustedDevice(it.address) }
-            if (!isReceiverRegistered) {
-                registerReceiver(
-                    pairingReceiver,
-                    IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST)
-                )
-                isReceiverRegistered = true
-            }
-            setContent {
-                Surface {
-                    Text("Bluetooth Security is running.")
-                }
-            }
-            Toast.makeText(this, "블루투스 보호 모드 활성화", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**리시버 해제 */
-    override fun onDestroy() {
-        super.onDestroy()
-        if (isReceiverRegistered) {
-            unregisterReceiver(pairingReceiver)
-            isReceiverRegistered = false
-        }
+    private fun showToast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 }
-
